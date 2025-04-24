@@ -177,7 +177,7 @@ if __name__ == "__main__":
     noises = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
     moons_datasets = [f"moons_{size}_{noise}" for size in sizes for noise in noises]
     circles_datasets = [f"circles_{size}_{noise}" for size in sizes for noise in noises]
-    datasets = ["wine", "congress", "breast_cancer"] + moons_datasets + circles_datasets
+    datasets = ["breast_cancer"]
     
     config = ECTConfig(radius=1.0, bump_steps=16, ect_type="faces", normalized=True, fixed=True)
     num_directions, hidden_dim = 64, 64
