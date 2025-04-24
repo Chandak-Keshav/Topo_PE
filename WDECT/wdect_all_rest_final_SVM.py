@@ -170,7 +170,7 @@ if __name__ == "__main__":
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 
         # Train
-        for epoch in range(1, 51):
+        for epoch in range(1, 101):
             loss = train_epoch(model, tr, optimizer)
             if epoch % 10 == 0:
                 print(f" Epoch {epoch:02d}, Loss: {loss:.4f}")

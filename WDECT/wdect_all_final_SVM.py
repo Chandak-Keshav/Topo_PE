@@ -188,7 +188,7 @@ if __name__ == "__main__":
                        ect_type="faces", normalized=True, fixed=True)
     # SVM/RBF hyperparameters
     num_dirs, rff_dim, gamma = 64, 512, 1.0
-    lr, epochs = 1e-2, 50
+    lr, epochs = 1e-2, 100
 
     for name in datasets:
         print(f"\n--- {name} ---")
