@@ -9,6 +9,9 @@ from wect import ECTConfig, compute_ecc, normalize
 from build_weighted_complex import build_weighted_complex
 import pandas as pd
 
+# Set device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 # -----------------------------------------------------------------------------
 # WDECTLayer: Weighted + Differentiable
 # -----------------------------------------------------------------------------
@@ -58,17 +61,17 @@ class WDECTLayer(nn.Module):
 # -----------------------------------------------------------------------------
 def create_complete_graph(f: torch.Tensor) -> Data:
     """Convert a feature vector into a complete graph for WDECTLayer."""
+    device = f.device
     F = len(f)
-    # Nodes: F nodes, each at position e_i * f[i] in F-dimensional space
-    x = torch.zeros(F, F)
+    x = torch.zeros(F, F, device=device)
     for i in range(F):
         x[i, i] = f[i]
-    edge_index = torch.combinations(torch.arange(F), r=2).T
+    edge_index = torch.combinations(torch.arange(F, device=device), r=2).T
     edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
-    face = torch.combinations(torch.arange(F), r=3).T if F >= 3 else torch.empty((3,0), dtype=torch.long)
-    node_weights = torch.ones(F)
-    edge_weights = torch.ones(edge_index.shape[1])
-    face_weights = torch.ones(face.shape[1]) if face.numel() > 0 else torch.empty(0)
+    face = torch.combinations(torch.arange(F, device=device), r=3).T if F >= 3 else torch.empty((3,0), dtype=torch.long, device=device)
+    node_weights = torch.ones(F, device=device)
+    edge_weights = torch.ones(edge_index.shape[1], device=device)
+    face_weights = torch.ones(face.shape[1], device=device) if face.numel() > 0 else torch.empty(0, device=device)
     return Data(x=x, edge_index=edge_index, face=face, node_weights=node_weights, 
                 edge_weights=edge_weights, face_weights=face_weights)
 
@@ -79,8 +82,8 @@ class WDECTClassifier(nn.Module):
     def __init__(self, config: ECTConfig, hidden_dim: int, num_classes: int, num_directions: int, dim: int):
         super().__init__()
         self.config = config
-        # Generate random unit directions in R^dim
-        v = torch.randn(dim, num_directions)
+        # Generate random unit directions in R^dim on the device
+        v = torch.randn(dim, num_directions, device=device)
         v = v / v.norm(dim=0, keepdim=True)
         self.wdect = WDECTLayer(config, v)
         in_dim = num_directions * config.bump_steps
@@ -99,7 +102,7 @@ class WDECTClassifier(nn.Module):
 # -----------------------------------------------------------------------------
 # Data loader for all datasets
 # -----------------------------------------------------------------------------
-def load_and_prepare_dataset(dataset_name: str):
+def load_and_prepare_dataset(dataset_name: str, device: torch.device):
     """Load dataset and convert samples to graph structures."""
     if dataset_name == "load_digits":
         data = load_digits()
@@ -108,21 +111,21 @@ def load_and_prepare_dataset(dataset_name: str):
         for img, lbl in zip(imgs, labels):
             V, E, F, Vw, Ew, Fw = build_weighted_complex(img)
             data_obj = Data(
-                x=torch.tensor(V, dtype=torch.float),
-                edge_index=torch.tensor(E.T, dtype=torch.long) if E.size else torch.empty((2,0), dtype=torch.long),
-                face=torch.tensor(F.T, dtype=torch.long) if F.size else torch.empty((3,0), dtype=torch.long),
-                node_weights=torch.tensor(Vw, dtype=torch.float),
-                edge_weights=torch.tensor(Ew, dtype=torch.float),
-                face_weights=torch.tensor(Fw, dtype=torch.float),
-                y=torch.tensor([lbl], dtype=torch.long)
+                x=torch.tensor(V, dtype=torch.float, device=device),
+                edge_index=torch.tensor(E.T, dtype=torch.long, device=device) if E.size else torch.empty((2,0), dtype=torch.long, device=device),
+                face=torch.tensor(F.T, dtype=torch.long, device=device) if F.size else torch.empty((3,0), dtype=torch.long, device=device),
+                node_weights=torch.tensor(Vw, dtype=torch.float, device=device),
+                edge_weights=torch.tensor(Ew, dtype=torch.float, device=device),
+                face_weights=torch.tensor(Fw, dtype=torch.float, device=device),
+                y=torch.tensor([lbl], dtype=torch.long, device=device)
             )
             data_list.append(data_obj)
         dim = 2  # 2D coordinates from image
         num_classes = 10
     elif dataset_name == "iris":
         data = load_iris()
-        features = torch.tensor(data.data, dtype=torch.float)
-        labels = torch.tensor(data.target, dtype=torch.long)
+        features = torch.tensor(data.data, dtype=torch.float, device=device)
+        labels = torch.tensor(data.target, dtype=torch.long, device=device)
         data_list = [create_complete_graph(f).clone() for f in features]
         for data_obj, lbl in zip(data_list, labels):
             data_obj.y = lbl.unsqueeze(0)
@@ -130,11 +133,9 @@ def load_and_prepare_dataset(dataset_name: str):
         num_classes = 3
     elif dataset_name == "spect":
         data = fetch_openml(name='SPECT', version=1, parser='auto')
-        # Convert categorical columns to numeric using cat.codes
         data.data = data.data.apply(lambda x: x.cat.codes if pd.api.types.is_categorical_dtype(x) else x)
-        # Now convert to tensor
-        features = torch.tensor(data.data.to_numpy(), dtype=torch.float)
-        labels = torch.tensor((data.target == '1').astype(int), dtype=torch.long)
+        features = torch.tensor(data.data.to_numpy(), dtype=torch.float, device=device)
+        labels = torch.tensor((data.target == '1').astype(int), dtype=torch.long, device=device)
         data_list = [create_complete_graph(f).clone() for f in features]
         for data_obj, lbl in zip(data_list, labels):
             data_obj.y = lbl.unsqueeze(0)
@@ -142,8 +143,8 @@ def load_and_prepare_dataset(dataset_name: str):
         num_classes = 2
     elif dataset_name == "letters":
         data = fetch_openml(name='letter', version=1, parser='auto')
-        features = torch.tensor(data.data.to_numpy(), dtype=torch.float)
-        labels = torch.tensor(data.target.map(lambda x: ord(x) - ord('A')), dtype=torch.long)
+        features = torch.tensor(data.data.to_numpy(), dtype=torch.float, device=device)
+        labels = torch.tensor(data.target.map(lambda x: ord(x) - ord('A')), dtype=torch.long, device=device)
         data_list = [create_complete_graph(f).clone() for f in features]
         for data_obj, lbl in zip(data_list, labels):
             data_obj.y = lbl.unsqueeze(0)
@@ -187,10 +188,10 @@ if __name__ == "__main__":
 
     for dataset_name in datasets:
         print(f"\nProcessing {dataset_name} dataset")
-        data_list, dim, num_classes = load_and_prepare_dataset(dataset_name)
+        data_list, dim, num_classes = load_and_prepare_dataset(dataset_name, device)
         train_data, test_data = train_test_split(data_list, test_size=0.2, random_state=42)
-        model = WDECTClassifier(config, hidden_dim, num_classes, num_directions, dim)
-        train(model, train_data, epochs=100)
+        model = WDECTClassifier(config, hidden_dim, num_classes, num_directions, dim).to(device)
+        train(model, train_data, epochs=50)
         train_acc = evaluate(model, train_data)
         test_acc = evaluate(model, test_data)
         print(f"{dataset_name} Train Accuracy: {train_acc:.4f}")

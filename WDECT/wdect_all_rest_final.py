@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch_geometric.data import Data, Batch
 from sklearn.datasets import load_wine, load_breast_cancer, make_moons, make_circles
 from sklearn.model_selection import train_test_split
-from ect import ECTConfig, compute_ecc, normalize
+from wect import ECTConfig, compute_ecc, normalize
 from build_weighted_complex import build_weighted_complex
 import pandas as pd
 import numpy as np
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         data_list, dim, num_classes = load_and_prepare_dataset(dataset_name)
         train_data, test_data = train_test_split(data_list, test_size=0.2, random_state=42)
         model = WDECTClassifier(config, hidden_dim, num_classes, num_directions, dim)
-        train(model, train_data, epochs=150)
+        train(model, train_data, epochs=300)
         train_acc = evaluate(model, train_data)
         test_acc = evaluate(model, test_data)
         print(f"{dataset_name} Train Accuracy: {train_acc:.4f}")
