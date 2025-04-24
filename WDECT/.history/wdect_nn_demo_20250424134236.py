@@ -32,7 +32,7 @@ from build_weighted_complex import build_weighted_complex
 from complex_to_weighted_ECT import complex_to_weighted_ECT, weighted_euler_curve
 from distance_RotationInvariant import distance_RotationInvariant
 from ect import ECTConfig, Batch as ECTBatch, normalize
-from wect import ECTLayer
+from wect import WECTLayer
 
 ################################################################################
 # Data Preparation: Build Weighted Complex Data for Each Image
