@@ -1,0 +1,6 @@
+Dataset: iris, Train Acc: 0.9815, Test Acc: 0.9767
+Dataset: spect, Train Acc: 0.9005, Test Acc: 0.8148
+Dataset: load_digits, Train Acc: 0.5677, Test Acc: 0.5867
+Dataset: wine, Train Acc: 1.0000, Test Acc: 0.8056
+Dataset: breast_cancer, Train Acc: 0.9462, Test Acc: 0.9386
+Dataset: congress, Train Acc: 0.9649, Test Acc: 0.9425
